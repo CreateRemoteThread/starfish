@@ -72,7 +72,7 @@ def flipLabels(inDict):
     outDict[k] = i
   return outDict
 
-recoverDict = flipLabels(testDict)
+recoverDict = flipLabels(trainDict)
 recoveredWords = []
 
 print("Predicting...")

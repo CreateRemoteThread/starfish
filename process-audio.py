@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# plot - convert wav to timing distance
+# process-audio - convert wav to timing distance
 
 import getopt
 import sys
