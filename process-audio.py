@@ -43,6 +43,14 @@ if CFG_INFILE is None:
   print("You must specify an input wavfile with -f")
   sys.exit(0)
 
+if CFG_FREQHIGH >= (CFG_SAMPLERATE // 2):
+  print("Bandpass highcut (-h) must be below half of sample rate")
+  sys.exit(0)
+
+if CFG_FREQLOW >= CFG_FREQHIGH:
+  print("Bandpass lowcut (-l) must be lower than highcut (-h)")
+  sys.exit(0)
+
 def butter_bandpass(lowcut,highcut,fs,order=5):
   nyq = 0.5 * fs
   low = lowcut / nyq
