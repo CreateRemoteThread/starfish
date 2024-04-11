@@ -20,11 +20,12 @@ CFG_FREQHIGH   = 23000
 CFG_INFILE     = None
 CFG_SKIP       = []
 CFG_VOLTHRESH  = 50
+CFG_WRITEFILE  = "cheeseburger.data"
 
 CFG_SPLITLEN   = 500
 CFG_SPLITSTEP  = 250
 
-args, rems = getopt.getopt(sys.argv[1:],"f:s:l:h:t:",["file=","samplerate=","lowcut=","highcut=","skip=","thresh="])
+args, rems = getopt.getopt(sys.argv[1:],"f:s:l:h:t:w:",["file=","samplerate=","lowcut=","highcut=","skip=","thresh=","writefile="])
 for arg, val in args:
   if arg in ["-f","--file"]:
     CFG_INFILE = val
@@ -36,6 +37,8 @@ for arg, val in args:
     CFG_FREQHIGH = int(val)
   elif arg in ["-t","--thresh"]:
     CFG_VOLTHRESH = int(val)
+  elif arg in ["-w","--writefile"]:
+    CFG_WRITEFILE = val
   elif arg in ["--skip"]:
     print("Parsing --skip option...")
     if "," in val:
@@ -120,7 +123,7 @@ print("Samples remaining: %d" % len(filt_peaks))
 
 peaks = filt_peaks
 
-with open("cheeseburger.data","w") as f:
+with open(CFG_OUTFILE,"w") as f:
   sectimes = [float(peak / CFG_SAMPLERATE) for peak in peaks]
   for i in range(0,len(sectimes),6):
     f.write("??????:%s\n" % sectimes[i:i+6])
