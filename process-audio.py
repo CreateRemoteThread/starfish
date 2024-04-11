@@ -4,6 +4,7 @@
 
 import getopt
 import sys
+import numpy as np
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
 from scipy.signal import butter,lfilter,freqz
@@ -19,6 +20,9 @@ CFG_FREQHIGH   = 23000
 CFG_INFILE     = None
 CFG_SKIP       = []
 CFG_VOLTHRESH  = 50
+
+CFG_SPLITLEN   = 500
+CFG_SPLITSTEP  = 250
 
 args, rems = getopt.getopt(sys.argv[1:],"f:s:l:h:t:",["file=","samplerate=","lowcut=","highcut=","skip=","thresh="])
 for arg, val in args:
@@ -76,7 +80,26 @@ def f_suppress_silence(in_data,sil_thresh):
 def suppress_silence(in_data,sil_thresh):
   return [f_suppress_silence(d,sil_thresh) for d in in_data]
 
+# CFG_SPLITSTEP = how far to move cursor forward
+# CFG_SPLITLEN  = how many samples to read
+import random
+def doSplitPSD(wave_in):
+  wav_slices = []
+  for i in range(0,len(wave_in),CFG_SPLITSTEP):
+    if i + CFG_SPLITLEN >= len(wave_in):
+      print("doSplitPSD: discarding last sample")
+      break
+    wav_slices.append(wave_in[i:i + CFG_SPLITLEN])
+  psd_s = [scipy.signal.welch(wave_in,fs=CFG_SAMPLERATE)[1] for wave_in in wav_slices]
+  psd_sums = [[sum(psd)] * CFG_SPLITSTEP for psd in psd_s]
+  fig,(ax1,ax2) = plt.subplots(nrows=2)
+  ax1.plot(wave_in)
+  ax2.plot(psd_sums)
+  plt.show() 
+
 data = wavfile.read(CFG_INFILE)[1]
+doSplitPSD(data)
+
 fig,(ax1,ax2) = plt.subplots(2,1)
 ax1.specgram(data,Fs=CFG_SAMPLERATE,NFFT=256)
 step1 = butter_bandpass_filter(data,CFG_FREQLOW,CFG_FREQHIGH,CFG_SAMPLERATE,3)

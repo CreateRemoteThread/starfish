@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# arbitrary sample generator.
+# arbitrary sample generator
 
 import termios
 import tty
