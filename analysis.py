@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import platform
 import sys
 import keras
@@ -14,15 +15,18 @@ def loadDataset(fn,labelDict=None):
   f = open(fn,"r")
   l = [l_.rstrip() for l_ in f.readlines()]
   f.close()
-  print(len(l))
   trainingLabels = []
-  trainingData = np.zeros((len(l),10),np.float32)
+  # trainingData = np.zeros((len(l),10),np.float32)
+  trainingData   = []
   writeHead = 0
   for line in l:
     word,timingData = line.split(":")
     timingData = timingData.replace("[","")
     timingData = timingData.replace("]","")
     timingData = timingData.replace("\'","")
+    if len(timingData.split(",")) != 6:
+      print("This word isn't 6 characters long")
+      continue
     trainingLabels.append(word)
     # timingRaw = [float(f) for f in timingData.split(",")]
     timingRaw = [round(float(f),3) for f in timingData.split(",")]
@@ -36,23 +40,29 @@ def loadDataset(fn,labelDict=None):
     timingTotal = np.zeros(10,np.float32)
     timingTotal[0:5] = timingDiff
     timingTotal[5:10] = timingNorm
-    trainingData[writeHead:] = timingTotal
+    trainingData.append(np.array(timingTotal,np.float32))
     writeHead += 1
+  trainingData = np.array(trainingData)
+  print(trainingData.shape)
   if labelDict is None:
     trainingDict = {}
   else:
-    trainingDict = labelDict
+    trainingDict = copy.copy(labelDict)
   labelCtr = 0
   for l in trainingLabels:
     if l not in trainingDict.keys():
       trainingDict[l] = labelCtr
       labelCtr += 1
   numericTrainingLabels = np.array([trainingDict[l] for l in trainingLabels],np.uint8)
+  # print(len(trainingData))
+  # print(len(numericTrainingLabels))
   return (trainingData,numericTrainingLabels,trainingDict)
 
 print("Loading data...")
 (trainData,trainLabels,trainDict) = loadDataset(sys.argv[1])
 (testData,testLabels,testDict) = loadDataset(sys.argv[2],trainDict)
+print(len(testData))
+input(">")
 
 print("Training...")
 mdl = tf.keras.models.Sequential()
