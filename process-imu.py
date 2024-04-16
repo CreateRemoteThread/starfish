@@ -23,23 +23,29 @@ def butter_bandpass_filter(data,lowcut,highcut,fs,order=5):
 
 f = open(sys.argv[1],"rb")
 
-# f.read(1)
-aud = []
+data_x = []
+data_y = []
+data_z = []
 
 while True:
   try:
-    aud.append(struct.unpack("<h",f.read(2))[0])
+    data_x.append(struct.unpack("<h",f.read(2))[0])
+    data_y.append(struct.unpack("<h",f.read(2))[0])
+    data_z.append(struct.unpack("<h",f.read(2))[0])
   except:
     break
 
 f.close()
 
-data = np.array(aud)
-data = np.abs(butter_bandpass_filter(data,150,457,916,order=3)[100:])
 CFG_SAMPLERATE=916
 CFG_VOLTHRESH=800
 
-fig,ax1 = plt.subplots(nrows=1)
+fig,(ax1,ax2,ax3) = plt.subplots(nrows=3)
+
+def moving_average(a, n=3):
+  ret = np.cumsum(a, dtype=float)
+  ret[n:] = ret[n:] - ret[:-n]
+  return ret[n - 1:] / n
 
 def detect_outlier(data_1):
   outliers = []
@@ -53,5 +59,10 @@ def detect_outlier(data_1):
       outliers.append(idx)
   return outliers
 
-ax1.plot(data)
+data_sum = []
+for i in range(0,len(data_x)):
+  data_sum.append(np.abs(data_x[i]) + np.abs(data_y[i]) + np.abs(data_z[i]))
+
+data_sum = butter_bandpass_filter(data_sum,50,457,916,order=1)[100:]
+ax1.plot(np.abs(np.array(data_sum)))
 plt.show()
