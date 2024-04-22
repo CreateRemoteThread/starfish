@@ -12,7 +12,6 @@ f = open(sys.argv[2],"wb")
 ser = serial.Serial(sys.argv[1],115200)
 loggedData = 1
 
-
 print("synchronising...")
 while True:
   while ser.inWaiting() < 10:
@@ -47,7 +46,7 @@ while True:
   else:
     loggedData += 1
     f.write(data)
-  if loggedData % 3000 == 0 and loggedData != 0:
+  if loggedData % 100 == 0 and loggedData != 0:
     f.flush()
 
 f.close()

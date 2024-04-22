@@ -19,7 +19,7 @@ CFG_FREQLOW    = 5000
 CFG_FREQHIGH   = 22000
 CFG_INFILE     = None
 CFG_SKIP       = []
-CFG_VOLTHRESH  = 50
+CFG_VOLTHRESH  = 500
 CFG_WRITEFILE  = None
 
 CFG_SPLITLEN   = 500
@@ -119,7 +119,7 @@ ax1.specgram(data,Fs=CFG_SAMPLERATE,NFFT=256)
 
 step1 = psd_sums
 
-peaks,_ = scipy.signal.find_peaks(step1,height=CFG_VOLTHRESH,distance=0.030 * CFG_SAMPLERATE)
+peaks,_ = scipy.signal.find_peaks(step1,height=CFG_VOLTHRESH,distance=0.030 * CFG_SAMPLERATE,prominence=1000)
 # peaks = peaks[2:]
 print(peaks)
 
