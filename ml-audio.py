@@ -3,6 +3,7 @@
 import getopt  
 import sys
 import signalhelper
+import signalhelper.mel
 import keras
 import tensorflow as tf
 import numpy as np
@@ -45,7 +46,11 @@ for k in trainingData.keys():
   trainDict[trainHead] = fn
   (peakSamples,peakSamples_fft) = trainingData[fn]
   for i in range(0,len(peakSamples)):
-    trainSamples.append(np.concatenate((peakSamples[i],peakSamples_fft[i])))
+    melspec = signalhelper.mel.mfcc(y=peakSamples[i],sr=48000,n_mfcc=12,n_fft=110,hop_length=55)
+    print(melspec)
+    # trainSamples.append(np.concatenate((peakSamples[i],peakSamples_fft[i])))
+    # trainSamples.append(peakSamples_fft[i])
+    trainSamples.append(melspec)
     trainLabels += [trainHead]
   trainHead += 1
 
