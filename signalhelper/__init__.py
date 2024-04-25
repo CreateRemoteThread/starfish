@@ -42,34 +42,92 @@ def doSplitPSD(wave_in,CFG_SAMPLERATE,CFG_SPLITSTEP,CFG_SPLITLEN):
     wav_slices.append(wave_in[i:i + CFG_SPLITLEN])
   psd_s = [scipy.signal.welch(wave_in,fs=CFG_SAMPLERATE)[1] for wave_in in wav_slices]
   psd_sums = [[sum(psd)] * CFG_SPLITSTEP for psd in psd_s]
-  # fig,(ax1,ax2) = plt.subplots(nrows=2)
-  # ax1.plot(wave_in)
-  # ax2.plot(psd_sums)
-  # plt.show()
   return psd_sums
 
+def simpleFFT(d,FFT_BASEFREQ=48000):
+  n = len(d)
+  k = np.arange(n)
+  T = n / FFT_BASEFREQ
+  frq = k / T
+  frq = frq[list(range(n // 2))]
+  Y = np.fft.fft(d)/n
+  Y = Y[list(range(n //  2))]
+  return abs(Y)
+
+def normalizeSlice(oneSignal, sigMin=None,sigMax=None):
+  if sigMin is None and sigMax is None:
+    localMin = min(oneSignal)
+    localMax = max(oneSignal)
+  else:
+    localMin = sigMin
+    localMax = sigMax
+  signal = np.copy(oneSignal)
+  signal -= localMin
+  signal /= np.float32(localMax)
+  signal -= 0.5
+  signal *= 2
+  return signal
+
+def getMaxCorrCoeff(sigref,sigxcorr,minslide=-200,maxslide=200):
+  maxCf = 0
+  maxCfIndex = 0
+  for i in range(minslide,maxslide):
+    sig_test = np.roll(sigxcorr,i)
+    try:
+      r = np.corrcoef(sigref,sig_test)
+    except:
+      print("getMaxCorrCoef: error, passing to next")
+    if r[0,1] > maxCf:
+      maxCf = r[0,1]
+      maxCfIndex = i
+  return maxCfIndex
+ 
+def realign(signalData,reftrace=0):
+  newSignalData = [signalData[0]]
+  for i in range(1,len(signalData)):
+    mcf = getMaxCorrCoeff(signalData[0],signalData[i])
+    newSignalData.append(np.roll(signalData[i],mcf))
+  return newSignalData
+ 
 class WaveHelper:
-  def __init__(self, fn, CFG_SAMPLERATE=48000, CFG_SKIP = [], CFG_VOLTHRESH=500,CFG_SPLITLEN=500,CFG_SPLITSTEP=250,CFG_WORDSPLIT=0.2):
+  def __init__(self, fn, CFG_SAMPLERATE=48000, CFG_SKIP = [], CFG_VOLTHRESH=400,CFG_SPLITLEN=480,CFG_SPLITSTEP=240,CFG_WORDSPLIT=0.2):
     self.CFG_SAMPLERATE = CFG_SAMPLERATE
     self.CFG_VOLTHRESH = CFG_VOLTHRESH
     self.CFG_SPLITLEN = CFG_SPLITLEN
     self.CFG_SPLITSTEP = CFG_SPLITSTEP
     self.CFG_WORDSPLIT = CFG_WORDSPLIT
+    self.CFG_BEFORESLICES = 5
+    self.CFG_AFTERSLICES = 10
     self.CFG_FN = fn
-    self.wavData = raw_data = wavfile.read(fn)[1] 
+    self.wavData = [float(sample) for sample in wavfile.read(fn)[1]]
+    # self.normData = normalizeSlice(self.wavData,min(self.wavData),max(self.wavData))
 
   def extractPeakSamples(self,plotResults = True):
     psd_sums = np.ndarray.flatten(np.array(doSplitPSD(self.wavData,self.CFG_SAMPLERATE,self.CFG_SPLITSTEP,self.CFG_SPLITLEN)))
-    peaks,_ = scipy.signal.find_peaks(psd_sums,height=self.CFG_VOLTHRESH,distance=0.030 * self.CFG_SAMPLERATE,prominence=1000)
+    peaks,_ = scipy.signal.find_peaks(np.abs(psd_sums),height=self.CFG_VOLTHRESH,distance=0.030 * self.CFG_SAMPLERATE,prominence=1000)
     retval = []
-    for p in peaks:
-      sampleData = self.wavData[p-self.CFG_SPLITLEN:p+4*self.CFG_SPLITLEN]
-      localPeak = np.argmax(sampleData) - self.CFG_SPLITLEN
-      print("Local peak identified at offset %d" % localPeak)
-      realSampleData = np.array(self.wavData[p-self.CFG_SPLITLEN+localPeak:p+4*self.CFG_SPLITLEN+localPeak],np.int32)
-      retval.append(realSampleData)
-      if plotResults is True:
-        plt.plot(realSampleData)
+    retval_fft = []
     if plotResults is True:
-      plt.show()
-    return retval
+      fig,(ax1,ax2,ax3) = plt.subplots(nrows=3)
+      ax1.margins(x=0)
+      ax1.plot(self.wavData)
+    for p in peaks:
+      sampleData = self.wavData[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN:p+self.CFG_AFTERSLICES*self.CFG_SPLITLEN]
+      localPeak = np.argmax(np.abs(sampleData)) - self.CFG_BEFORESLICES*self.CFG_SPLITLEN
+      if plotResults is True:
+        ax1.vlines(x=[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN+localPeak],ymin=-1000,ymax=1000,color="red")
+        ax1.vlines(x=[p+self.CFG_AFTERSLICES*self.CFG_SPLITLEN+localPeak],ymin=-1000,ymax=1000,color="green")
+      realSampleData = np.array(self.wavData[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN+localPeak:p+self.CFG_AFTERSLICES*self.CFG_SPLITLEN+localPeak],np.float32)
+      retval_fft.append(list(simpleFFT(realSampleData)))
+      realSampleData = normalizeSlice(realSampleData)
+      retval.append(realSampleData)
+    if plotResults is True:
+      # print(self.wavData)
+      ax1.plot(peaks,np.array(self.wavData)[peaks],"x")
+      ax2.specgram(self.wavData,NFFT=1024,Fs=48000,noverlap=900)
+    retval = realign(retval)
+    if plotResults is True:
+      for v in retval:
+        ax3.plot(v)
+    plt.show()
+    return (retval,retval_fft)
