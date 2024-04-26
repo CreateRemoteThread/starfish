@@ -7,12 +7,30 @@ import signalhelper.mel
 import keras
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
+
+class PlotLearning(tf.keras.callbacks.Callback):
+  def on_train_begin(self,logs={}):
+    self.metrics = {}
+    for metric in logs:
+      self.metrics[metric] = []
+
+  def getLastAccuracy(self):
+    return (self.metrics['loss'],self.metrics['accuracy'])
+
+  def on_epoch_end(self,epoch,logs={}):
+    for metric in logs:
+      if metric in self.metrics:
+        self.metrics[metric].append(logs.get(metric))
+      else:
+        self.metrics[metric] = [logs.get(metric)]
 
 CFG_TRAIN   = []
 CFG_FIT     = []
 CFG_VERBOSE = False
+CFG_PLTACC  = False
 
-args, rems = getopt.getopt(sys.argv[1:],"t:f:v",["train=","fit=","verbose"])
+args, rems = getopt.getopt(sys.argv[1:],"t:f:va",["train=","fit=","verbose","acc"])
 for arg, val in args:
   if arg in ["-t","--train"]:
     CFG_TRAIN.append(val)
@@ -20,14 +38,16 @@ for arg, val in args:
     CFG_FIT.append(val)
   elif arg in ["-v","--verbose"]:
     CFG_VERBOSE = True
+  elif arg in ["-a","--acc"]:
+    CFG_PLTACC = True
 
 print("Step 1: Extract sample data")
 trainingData = {}
 
-for fn in CFG_TRAIN: 
+for fn in CFG_TRAIN:
   fs = signalhelper.WaveHelper(fn)
-  (peakSamples,peakSamples_fft) = fs.extractPeakSamples(plotResults=CFG_VERBOSE)
-  trainingData[fn] = (peakSamples,peakSamples_fft)
+  (peakSamples,peakSamples_feat) = fs.extractPeakSamples(plotResults=CFG_VERBOSE)
+  trainingData[fn] = (peakSamples,peakSamples_feat)
 
 trainSamples = []
 trainLabels = []
@@ -42,28 +62,30 @@ if CFG_VERBOSE is True:
 
 print("Step 2: Reshape into tensors array")
 trainHead = 0
-for k in trainingData.keys():
+for fn in trainingData.keys():
   trainDict[trainHead] = fn
-  (peakSamples,peakSamples_fft) = trainingData[fn]
+  (peakSamples,peakSamples_feat) = trainingData[fn]
   for i in range(0,len(peakSamples)):
-    melspec = signalhelper.mel.mfcc(y=peakSamples[i],sr=48000,n_mfcc=12,n_fft=110,hop_length=55)
-    print(melspec)
-    # trainSamples.append(np.concatenate((peakSamples[i],peakSamples_fft[i])))
-    # trainSamples.append(peakSamples_fft[i])
-    trainSamples.append(melspec)
-    trainLabels += [trainHead]
+    trainSamples.append(peakSamples_feat[i])
+    trainLabels.append(trainHead)
   trainHead += 1
 
 trainLabels = np.array(trainLabels,np.int8)
+# trainSamples = np.array([np.array(t).flatten() for t in trainSamples])
 trainSamples = np.array(trainSamples)
 
 mdl = tf.keras.models.Sequential()
+# mdl.add(tf.keras.layers.Conv1D(24, 5,strides =  3, input_shape=(16,1),activation="relu"))
 mdl.add(tf.keras.layers.Flatten())
 mdl.add(tf.keras.layers.Dense(128,activation="relu"))
-mdl.add(tf.keras.layers.Dense(128,activation="relu"))
-mdl.add(tf.keras.layers.Dense(32,activation="softmax"))
-mdl.compile(optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.0025),loss="sparse_categorical_crossentropy",metrics=["accuracy"])
+mdl.add(tf.keras.layers.Dense(64,activation="relu"))
+mdl.add(tf.keras.layers.Dense(32,activation="relu"))
+mdl.add(tf.keras.layers.Dense(8,activation="softmax"))
+mdl.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy"])
+
 mdl.summary()
 
-mdl.fit(trainSamples,trainLabels,epochs=100,batch_size=24,validation_split=0.10)
-
+history = mdl.fit(trainSamples,trainLabels,epochs=100,batch_size=24,validation_split=0.10)
+if CFG_PLTACC is True:
+  plt.plot(history.history['accuracy'])
+  plt.show()

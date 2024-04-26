@@ -113,7 +113,7 @@ psd_sums = np.ndarray.flatten(np.array(doSplitPSD(data)))
 fig,(ax_real,ax1,ax2) = plt.subplots(nrows=3)
 ax_real.margins(x=0)
 ax_real.plot(data)
-ax1.specgram(data,Fs=CFG_SAMPLERATE,NFFT=256)
+# ax1.specgram(data,Fs=CFG_SAMPLERATE,NFFT=256)
 # step1 = butter_bandpass_filter(data,CFG_FREQLOW,CFG_FREQHIGH,CFG_SAMPLERATE,3)
 # step2 = suppress_silence(step1,background_noise(step1))
 

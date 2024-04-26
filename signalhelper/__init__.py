@@ -3,10 +3,22 @@
 import getopt
 import sys
 import numpy as np
+import copy
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
 from scipy.signal import butter,lfilter,freqz
 import scipy.signal
+
+def butter_lowpass(cutoff, fs, order=5):
+  nyq = 0.5 * fs
+  normal_cutoff = cutoff / nyq
+  b, a = butter(order, normal_cutoff, btype='low', analog=False)
+  return b, a
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+  b, a = butter_lowpass(cutoff, fs, order=order)
+  y = lfilter(b, a, data)
+  return y
 
 def butter_bandpass(lowcut,highcut,fs,order=5):
   nyq = 0.5 * fs
@@ -37,7 +49,7 @@ def doSplitPSD(wave_in,CFG_SAMPLERATE,CFG_SPLITSTEP,CFG_SPLITLEN):
   wav_slices = []
   for i in range(0,len(wave_in),CFG_SPLITSTEP):
     if i + CFG_SPLITLEN >= len(wave_in):
-      print("doSplitPSD: discarding last sample")
+      print("doSplitPSD: last sample > wave length, discarding")
       break
     wav_slices.append(wave_in[i:i + CFG_SPLITLEN])
   psd_s = [scipy.signal.welch(wave_in,fs=CFG_SAMPLERATE)[1] for wave_in in wav_slices]
@@ -81,6 +93,17 @@ def getMaxCorrCoeff(sigref,sigxcorr,minslide=-200,maxslide=200):
       maxCf = r[0,1]
       maxCfIndex = i
   return maxCfIndex
+
+from . import mel
+def featureExtract(sig_in):
+  retval = []
+  for sig in sig_in:
+    retval.append(mel.mfcc(y=sig,n_mfcc=16,sr=48000,n_fft=240,hop_length=120))
+  # print(retval)
+  globalMax = np.max(retval)
+  globalMin = np.min(retval)
+  retval = [normalizeSlice(r,sigMax=globalMax,sigMin=globalMin) for r in retval]
+  return retval
  
 def realign(signalData,reftrace=0):
   newSignalData = [signalData[0]]
@@ -88,6 +111,18 @@ def realign(signalData,reftrace=0):
     mcf = getMaxCorrCoeff(signalData[0],signalData[i])
     newSignalData.append(np.roll(signalData[i],mcf))
   return newSignalData
+
+CFG_HIGHCUT = 480
+CFG_LOWCUT  = 60
+def realignFilter(signalData,reftrace=0):
+  newOrig = butter_bandpass_filter(signalData[0],CFG_LOWCUT,CFG_HIGHCUT,48000,3)
+  newSignalData = [newOrig[500:-500]]
+  for i in range(1,len(signalData)):
+    tempData = butter_bandpass_filter(signalData[i],CFG_LOWCUT,CFG_HIGHCUT,48000,3)
+    mcf = getMaxCorrCoeff(newOrig,tempData)
+    newSignalData.append(np.roll(tempData,mcf)[500:-500])
+  return newSignalData
+
  
 class WaveHelper:
   def __init__(self, fn, CFG_SAMPLERATE=48000, CFG_SKIP = [], CFG_VOLTHRESH=400,CFG_SPLITLEN=480,CFG_SPLITSTEP=240,CFG_WORDSPLIT=0.2):
@@ -96,8 +131,8 @@ class WaveHelper:
     self.CFG_SPLITLEN = CFG_SPLITLEN
     self.CFG_SPLITSTEP = CFG_SPLITSTEP
     self.CFG_WORDSPLIT = CFG_WORDSPLIT
-    self.CFG_BEFORESLICES = 5
-    self.CFG_AFTERSLICES = 10
+    self.CFG_BEFORESLICES = 4
+    self.CFG_AFTERSLICES = 8
     self.CFG_FN = fn
     self.wavData = [float(sample) for sample in wavfile.read(fn)[1]]
     # self.normData = normalizeSlice(self.wavData,min(self.wavData),max(self.wavData))
@@ -118,14 +153,43 @@ class WaveHelper:
         ax1.vlines(x=[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN+localPeak],ymin=-1000,ymax=1000,color="red")
         ax1.vlines(x=[p+self.CFG_AFTERSLICES*self.CFG_SPLITLEN+localPeak],ymin=-1000,ymax=1000,color="green")
       realSampleData = np.array(self.wavData[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN+localPeak:p+self.CFG_AFTERSLICES*self.CFG_SPLITLEN+localPeak],np.float32)
-      retval_fft.append(list(simpleFFT(realSampleData)))
+      # retval_fft.append(list(simpleFFT(realSampleData)))
       realSampleData = normalizeSlice(realSampleData)
       retval.append(realSampleData)
     if plotResults is True:
       # print(self.wavData)
       ax1.plot(peaks,np.array(self.wavData)[peaks],"x")
       ax2.specgram(self.wavData,NFFT=1024,Fs=48000,noverlap=900)
-    retval = realign(retval)
+    retval = realignFilter(retval)
+    retval_fft = featureExtract(retval)
+    if len(retval) == 1:
+      print("Error: only one sample provided for training key %s" % self.CFG_FN)
+      return retval
+    retval_backup = copy.copy(retval)
+    refHead = 0
+    sigref = retval[refHead]
+    deleteIndexes = []
+    # 50% of samples must remain, otherwise we picked a bad reference.
+    for i in range(1,len(retval)):
+      r = np.corrcoef(sigref,retval[i])
+      if 1.0 - r[0,1] > 0.2:
+        deleteIndexes.append(i)
+    while len(deleteIndexes) > 0.5 * len(retval):
+      refHead += 1
+      print("Warning: Internal corrcoef check failed too many samples, changing sigref to %d FIXME REFHEAD CASE" % refHead)
+      sigref = retval[refHead]
+      deleteIndexes = 0
+      for i in range(1,len(retval)):
+        r = np.corrcoef(sigref,retval[i])
+        if 1.0 - r[0,1] > 0.2:
+          deleteIndexes.append(i)
+    print("Flushing %d samples" % len(deleteIndexes))
+    deleteIndexes.sort()
+    deleteIndexes = deleteIndexes[::-1]
+    print(deleteIndexes)
+    for a in deleteIndexes:
+      del(retval[a])
+      del(retval_fft[a])
     if plotResults is True:
       for v in retval:
         ax3.plot(v)
