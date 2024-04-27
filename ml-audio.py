@@ -47,6 +47,7 @@ trainingData = {}
 for fn in CFG_TRAIN:
   fs = signalhelper.WaveHelper(fn)
   (peakSamples,peakSamples_feat) = fs.extractPeakSamples(plotResults=CFG_VERBOSE)
+  # (peakSamples,peakSamples_feat) = fs.extractPeakMessy(plotResults=CFG_VERBOSE)
   trainingData[fn] = (peakSamples,peakSamples_feat)
 
 trainSamples = []
@@ -66,7 +67,9 @@ for fn in trainingData.keys():
   trainDict[trainHead] = fn
   (peakSamples,peakSamples_feat) = trainingData[fn]
   for i in range(0,len(peakSamples)):
-    trainSamples.append(peakSamples_feat[i])
+    # trainSamples.append(peakSamples_feat[i])
+    print(peakSamples[i])
+    trainSamples.append(peakSamples[i])
     trainLabels.append(trainHead)
   trainHead += 1
 
@@ -75,7 +78,6 @@ trainLabels = np.array(trainLabels,np.int8)
 trainSamples = np.array(trainSamples)
 
 mdl = tf.keras.models.Sequential()
-# mdl.add(tf.keras.layers.Conv1D(24, 5,strides =  3, input_shape=(16,1),activation="relu"))
 mdl.add(tf.keras.layers.Flatten())
 mdl.add(tf.keras.layers.Dense(128,activation="relu"))
 mdl.add(tf.keras.layers.Dense(64,activation="relu"))

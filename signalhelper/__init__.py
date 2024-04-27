@@ -137,6 +137,22 @@ class WaveHelper:
     self.wavData = [float(sample) for sample in wavfile.read(fn)[1]]
     # self.normData = normalizeSlice(self.wavData,min(self.wavData),max(self.wavData))
 
+  def extractPeakMessy(self,plotResults = True):
+    print("EXTRACTING MESSY")
+    psd_sums = np.ndarray.flatten(np.array(doSplitPSD(self.wavData,self.CFG_SAMPLERATE,self.CFG_SPLITSTEP,self.CFG_SPLITLEN)))
+    peaks,_ = scipy.signal.find_peaks(np.abs(psd_sums),height=self.CFG_VOLTHRESH,distance=0.030 * self.CFG_SAMPLERATE,prominence=1000)
+    retval = []
+    retval_fft = []
+    plottedOne = False
+    for p in peaks:
+      sampleData = self.wavData[p-self.CFG_BEFORESLICES*self.CFG_SPLITLEN:p+self.CFG_AFTERSLICES*3*self.CFG_SPLITLEN]
+      if plotResults is True and plottedOne is False:
+        plt.plot(sampleData)
+        plottedOne = True
+    if plotResults is True:
+      plt.show()
+    return (retval,retval_fft)
+
   def extractPeakSamples(self,plotResults = True):
     psd_sums = np.ndarray.flatten(np.array(doSplitPSD(self.wavData,self.CFG_SAMPLERATE,self.CFG_SPLITSTEP,self.CFG_SPLITLEN)))
     peaks,_ = scipy.signal.find_peaks(np.abs(psd_sums),height=self.CFG_VOLTHRESH,distance=0.030 * self.CFG_SAMPLERATE,prominence=1000)
