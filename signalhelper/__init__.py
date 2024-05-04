@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from statsmodels.robust import mad
+import pywt
 import getopt
 import sys
 import numpy as np
@@ -66,6 +68,30 @@ def simpleFFT(d,FFT_BASEFREQ=48000):
   Y = Y[list(range(n //  2))]
   return abs(Y)
 
+def doWavelet(x,wavelet="db4",level=1):
+  coeff = pywt.wavedec(x,wavelet,mode="per")
+  sigma = mad( coeff[-level])
+  uthresh = sigma * np.sqrt( 2 * np.log( len(x) ) )
+  coeff[1:] = (pywt.threshold(i,value=uthresh,mode="soft") for i in coeff[1:])
+  y = pywt.waverec(coeff,wavelet,mode="per")
+  # del(x)
+  return y
+
+def legoBlocks(inSignal,stepSize=None):
+  localStepSize = 0
+  if stepSize is None:
+    localStepSize = len(inSignal) // 128
+  else:
+    localStepSize = stepSize
+  retVal = []
+  maxLen = len(inSignal)
+  readHead = 0
+  while readHead < (maxLen - localStepSize):
+    retVal.append(inSignal[readHead + localStepSize] / inSignal[readHead])
+    readHead += (localStepSize // 2)
+  print(retVal)
+  return retVal
+
 def normalizeSlice(oneSignal, sigMin=None,sigMax=None):
   if sigMin is None and sigMax is None:
     localMin = min(oneSignal)
@@ -120,6 +146,7 @@ def realignFilter(signalData,reftrace=0):
   for i in range(1,len(signalData)):
     tempData = butter_bandpass_filter(signalData[i],CFG_LOWCUT,CFG_HIGHCUT,48000,3)
     mcf = getMaxCorrCoeff(newOrig,tempData)
+    # newSignalData.append(tempData)
     newSignalData.append(np.roll(tempData,mcf)[500:-500])
   return newSignalData
 
@@ -192,10 +219,9 @@ class WaveHelper:
         deleteIndexes.append(i)
     while len(deleteIndexes) > 0.5 * len(retval):
       refHead += 1
-      print("Warning: Internal corrcoef check failed too many samples, changing sigref to %d FIXME REFHEAD CASE" % refHead)
       sigref = retval[refHead]
-      deleteIndexes = 0
-      for i in range(1,len(retval)):
+      deleteIndexes = []
+      for i in range(refHead+1,len(retval)):
         r = np.corrcoef(sigref,retval[i])
         if 1.0 - r[0,1] > 0.2:
           deleteIndexes.append(i)
@@ -208,6 +234,7 @@ class WaveHelper:
       del(retval_fft[a])
     if plotResults is True:
       for v in retval:
-        ax3.plot(v)
+        # ax3.plot(legoBlocks(v,256))
+        ax3.plot(doWavelet(v))
     plt.show()
     return (retval,retval_fft)

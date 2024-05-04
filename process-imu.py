@@ -64,12 +64,9 @@ def normalize(tSignal):
   signal *=2 # signal is in range [-1;1]
   return signal
 
-data_x = butter_bandpass_filter(data_x,50,457,fs=916)
-data_y = butter_bandpass_filter(data_y,50,457,fs=916)
-data_z = butter_bandpass_filter(data_z,50,457,fs=916)
-# data_y = normalize(data_y)
-# data_z = normalize(data_z)
-# scipy.signal.normalize(data_x)
+data_x = butter_bandpass_filter(data_x,50,457,fs=916)[100:-100]
+data_y = butter_bandpass_filter(data_y,50,457,fs=916)[100:-100]
+data_z = butter_bandpass_filter(data_z,50,457,fs=916)[100:-100]
 
 data_sum = []
 for i in range(0,len(data_x)):
@@ -80,8 +77,8 @@ data_sum = np.abs(np.array(data_sum))
 
 ax1.plot(np.abs(np.array(data_sum)))
 
-ax2.plot(data_x,label='x')
-ax2.plot(data_y,label='y')
-ax2.plot(data_z,label='z')
+# ax2.plot(data_x,label='x')
+# ax2.plot(data_y,label='y')
+ax2.plot(data_z[300:450],label='z')
 ax2.legend()
 plt.show()
