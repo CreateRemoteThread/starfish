@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import copy
-import platform
 import sys
-import keras
 import numpy as np
 import tensorflow as tf
 

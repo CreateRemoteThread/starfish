@@ -4,9 +4,7 @@
 # file to reduce dependency spam
 
 import scipy
-from typing import Callable, Generator, List, TypeVar, Union, Tuple, Any, Sequence
-from typing import Any, Callable, Optional, Tuple, List, Union, overload
-from typing_extensions import Literal, Never
+from typing import Callable, List, TypeVar, Union, Tuple, Any, Sequence, Literal, Optional, overload
 import numpy as np
 from numpy.typing import ArrayLike,DTypeLike
 from numpy.lib.stride_tricks import as_strided

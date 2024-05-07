@@ -4,7 +4,6 @@ import termios
 import tty
 import sys
 import random
-import getopt
 import time
 
 wordsDict = []
