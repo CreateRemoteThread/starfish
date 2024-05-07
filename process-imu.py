@@ -4,8 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import struct
-from scipy.signal import butter,lfilter,freqz
-import scipy.signal
+from scipy.signal import butter,lfilter
 
 def butter_bandpass(lowcut,highcut,fs,order=5):
   nyq = 0.5 * fs

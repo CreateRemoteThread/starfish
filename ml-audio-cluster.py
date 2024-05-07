@@ -6,12 +6,8 @@ import getopt
 import sys
 import signalhelper
 import signalhelper.mel
-import keras
-import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn import metrics
-from sklearn.cluster import DBSCAN,AgglomerativeClustering,OPTICS
+from sklearn.cluster import DBSCAN
 
 CFG_TRAIN   = []
 CFG_FIT     = []

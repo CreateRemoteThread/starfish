@@ -7,7 +7,7 @@ import sys
 import numpy as np
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
-from scipy.signal import butter,lfilter,freqz
+from scipy.signal import butter,lfilter
 import scipy.signal
 
 if len(sys.argv) < 2:
@@ -91,7 +91,6 @@ def suppress_silence(in_data,sil_thresh):
 
 # CFG_SPLITSTEP = how far to move cursor forward
 # CFG_SPLITLEN  = how many samples to read
-import random
 def doSplitPSD(wave_in):
   wav_slices = []
   for i in range(0,len(wave_in),CFG_SPLITSTEP):
