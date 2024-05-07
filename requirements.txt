@@ -1,0 +1,8 @@
+scipy
+numpy
+statsmodels
+copy
+matplotlib
+pywt
+typing
+typing_extensions
