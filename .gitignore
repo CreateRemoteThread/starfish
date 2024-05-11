@@ -1,5 +1,9 @@
 # Data
 
+rp_acq/*.hdf
+*.hdf
+**/*.hdf
+
 data/
 *.wav
 *.data
